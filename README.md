@@ -1,119 +1,111 @@
-# GhostPilot — GPS-Denied Drone Navigation with Agentic AI
+# GhostPilot
 
-**Open-source visual SLAM + agentic AI navigation stack for any drone — flies indoors, in jammed environments, or contested airspace without GPS or pilot expertise.**
+**Open-source visual SLAM + agentic AI navigation stack for GPS-denied drone flight.**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![ROS2 Humble](https://img.shields.io/badge/ROS2-Humble-blue.svg)](https://docs.ros.org/en/humble/)
-[![Nav2](https://img.shields.io/badge/Nav2-v2.0-green.svg)](https://navigation.ros.org/)
+> "Fly to the third floor, check each room for occupants, land at the helipad." — Done.
 
-## Why GhostPilot?
+GhostPilot lets any drone fly indoors, in jammed environments, or contested airspace without GPS. Built on proven robotics standards (ROS2, Nav2, VINS-Mono), with a natural language agentic layer for mission control.
 
-- **GPS is fragile** — Russia jammed 85% of drones in some Ukraine sectors
-- **Indoors = GPS blind** — warehouses, forests, urban canyons all fail GPS
-- **Current solutions are broken** — $50K military systems, unmaintained academic code, or fragmented toolchains
+## The Problem
 
-GhostPilot gives you **open-source, agentic AI navigation** that works anywhere.
+Drones are GPS-dependent. GPS is fragile:
+- Jamming: Russia jammed 85% of drones in some Ukraine sectors
+- Urban canyons: Signals bounce, accuracy drops to meters
+- Indoors: GPS simply doesn't work
+- Forests: Canopy disrupts signals
 
-## Features
+Current solutions are $50K+ military systems or unmaintained academic code. GhostPilot is the **open-source answer**.
 
-- **Visual-Inertial SLAM** — Camera + IMU fusion via VINS-Mono/ORB-SLAM3 for 6DOF pose estimation
-- **Agentic Mission Planner** — Natural language commands like *"Inspect building B, avoid people"* → executable navigation
-- **ROS2-Native** — Full Nav2 integration with path planning, obstacle avoidance, and recovery behaviors
-- **Edge Runtime** — Runs on NVIDIA Jetson Orin or Raspberry Pi 5 at 30+ FPS on-device
-- **No Cloud** — 100% local inference, privacy-preserving, battlefield-ready
+## Key Features
+
+- **Visual-Inertial SLAM**: Camera + IMU fusion for 6DOF pose estimation
+- **Agentic Mission Planner**: Natural language commands → executable navigation goals
+- **Nav2 Integration**: Industry-standard path planning + obstacle avoidance
+- **Edge-Native**: Runs on Jetson Orin / Raspberry Pi 5, no cloud dependency
+- **ROS2 Native**: Full integration with the robotics ecosystem
 
 ## Quick Start
 
-### Prerequisites
-
-- ROS2 Humble ([install guide](https://docs.ros.org/en/humble/Installation.html))
-- Ubuntu 22.04+
-- Python 3.10+
-
-### Installation
-
 ```bash
-# Clone the repository
-git clone https://github.com/AmSach/GhostPilot.git
+# Clone the repo
+git clone https://github.com/amsach/GhostPilot.git
 cd GhostPilot
 
-# Install dependencies
-pip install -r requirements.txt
+# Install dependencies (Ubuntu 22.04 + ROS2 Humble)
+./scripts/setup_jetson.sh
 
-# Build
-colcon build
-source install/setup.bash
+# Run simulation
+ros2 launch ghostpilot_gazebo indoor_warehouse.launch.py
 
-# Launch bringup
-ros2 launch ghostpilot_core bringup.launch.py
-```
-
-### Run a Mission
-
-```python
-from ghostpilot_agent import MissionExecutor
-
-executor = MissionExecutor()
-executor.execute("Fly to the third floor, check each room for occupants, land at the helipad")
+# In another terminal, run the agentic planner
+ros2 run ghostpilot_agent mission_parser_node
 ```
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  Agentic Mission Planner (LLM-based)                    │
-│  "Inspect building B, avoid people, report damage"      │
-├─────────────────────────────────────────────────────────┤
-│  Visual-Inertial SLAM (VINS-Mono / ORB-SLAM3)         │
-│  Camera + IMU fusion → 6DOF pose, no GPS required      │
-├─────────────────────────────────────────────────────────┤
-│  Edge Runtime (NVIDIA Jetson Orin / Raspberry Pi 5)    │
-│  Real-time inference at 30+ FPS on-device              │
-├─────────────────────────────────────────────────────────┤
-│  Nav2 Integration (path planning, obstacle avoidance)   │
-│  ROS2-native navigation stack with recovery behaviors   │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────┐
+│  Agentic Mission Planner (LLM-based)         │
+│  "Inspect building B, report damage"        │
+├─────────────────────────────────────────────┤
+│  Visual-Inertial SLAM (VINS-Mono)           │
+│  Camera + IMU → 6DOF pose                   │
+├─────────────────────────────────────────────┤
+│  Nav2 Navigation Stack                      │
+│  Path planning + obstacle avoidance         │
+├─────────────────────────────────────────────┤
+│  Edge Runtime (Jetson Orin / Pi 5)          │
+└─────────────────────────────────────────────┘
 ```
 
-## Comparison
+## Packages
 
-| Feature | GhostPilot | Skydio Enterprise | Military Systems |
-|---------|-----------|-------------------|-----------------|
-| Cost | $0 (open-source) | $5K+ per drone | $50K+ per unit |
-| GPS-denied | ✅ Native | ✅ Limited | ✅ Yes |
-| Agentic AI | ✅ Natural language | ❌ Waypoints only | ❌ Pre-programmed |
-| Edge-only | ✅ No cloud | ❌ Cloud required | ❌ Proprietary |
-| ROS2-native | ✅ Full integration | ❌ Closed | ❌ Proprietary |
+| Package | Description |
+|---------|-------------|
+| `ghostpilot_core` | VINS-Mono SLAM + Nav2 integration |
+| `ghostpilot_agent` | LLM-based mission parser + executor |
+| `ghostpilot_gazebo` | Gazebo simulation world + models |
 
-## Project Structure
+## Mission Command Examples
 
 ```
-GhostPilot/
-├── README.md
-├── docs/
-│   ├── architecture.md
-│   ├── gps-denied-explained.md
-│   └── demo-guide.md
-├── src/
-│   ├── ghostpilot_core/       # Main navigation stack
-│   ├── ghostpilot_agent/     # Agentic AI layer
-│   └── ghostpilot_gazebo/    # Simulation
-├── scripts/
-│   ├── setup_jetson.sh
-│   └── calibrate_camera.sh
-└── requirements.txt
+"Fly to the third floor, check each room for occupants"
+"Navigate around the blocked corridor, resume path at waypoint B"
+"Inspect the roof, avoid personnel, land at helipad"
+"Follow the pipeline east for 200m, report anomalies"
 ```
+
+## Hardware Requirements
+
+- **Compute**: NVIDIA Jetson Orin AGX or Raspberry Pi 5
+- **Camera**: Intel RealSense D435i (or equivalent stereo/IMU)
+- **Flight Controller**: PX4 or similar (MavLink compatible)
+- **Frame**: Any MAVLink-capable quadcopter
 
 ## Documentation
 
-- [Architecture Overview](docs/architecture.md)
+- [Architecture](docs/architecture.md)
 - [Why GPS-Denied Matters](docs/gps-denied-explained.md)
 - [Demo Guide](docs/demo-guide.md)
 
-## License
+## Comparison
 
-MIT License — free for commercial, academic, and defense use.
+| Feature | GhostPilot | Skydio | Military Systems |
+|---------|-----------|--------|-----------------|
+| Cost | $0 (open-source) | $5K+ | $50K+ |
+| GPS-denied | ✅ Native | ⚠️ Limited | ✅ Yes |
+| Agentic AI | ✅ Natural language | ❌ Waypoints | ❌ Pre-programmed |
+| Edge-only | ✅ No cloud | ❌ Cloud | ❌ Proprietary |
+| ROS2-native | ✅ Full | ❌ Closed | ❌ Proprietary |
+
+## Status
+
+Early development. Core SLAM + Nav2 bridge working in simulation. Agentic layer in progress.
 
 ## Contributing
 
-PRs welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions.
+Pull requests welcome. See issues for TODO list.
+
+## License
+
+Apache 2.0

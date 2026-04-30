@@ -1,105 +1,130 @@
-# GhostPilot Architecture
+# GhostPilot System Architecture
 
 ## Overview
 
-GhostPilot is an open-source GPS-denied drone navigation stack combining:
-- Visual-inertial SLAM for pose estimation
-- ROS2 Nav2 for navigation
-- Agentic AI for natural language mission commands
+GhostPilot is a GPS-denied drone navigation stack combining visual-inertial SLAM, ROS2 Nav2, and an agentic LLM layer for natural language mission control.
 
 ## System Diagram
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│                      GhostPilot System                           │
-├──────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  ┌──────────────┐    ┌───────────────┐    ┌──────────────────┐ │
-│  │  Realsense   │───▶│  VINS-Mono    │───▶│    Pose Bridge   │ │
-│  │  Camera +    │    │  Visual SLAM  │    │  (SLAM → Nav2)   │ │
-│  │  IMU         │    │               │    │                  │ │
-│  └──────────────┘    └───────────────┘    └────────┬─────────┘ │
-│                                                     │           │
-│                    ┌────────────────────────────────▼───────┐   │
-│                    │           Nav2 Navigation Stack          │   │
-│                    │  ┌─────────┐ ┌──────────┐ ┌──────────┐  │   │
-│                    │  │ AMCL    │ │ Planner  │ │ Controller│  │   │
-│                    │  │         │ │ Server   │ │ Server   │  │   │
-│                    │  └─────────┘ └──────────┘ └──────────┘  │   │
-│                    └──────────────────────────────────────────┘   │
-│                                    │                              │
-│  ┌──────────────────┐    ┌─────────▼─────────┐                    │
-│  │  Agentic AI      │───▶│   Mission         │                    │
-│  │  (LLM Planner)   │    │   Executor        │                    │
-│  └──────────────────┘    └───────────────────┘                    │
-│                                                                  │
-└──────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│                   Operator Interface                      │
+│         Natural Language Mission Commands                 │
+└──────────────────────────┬───────────────────────────────┘
+                           │
+┌──────────────────────────▼───────────────────────────────┐
+│               ghostpilot_agent                            │
+│  ┌─────────────────┐    ┌────────────────┐              │
+│  │  Mission Parser │───▶│   Executor     │              │
+│  │  (LLM-based)    │    │ (Behavior Tree)│              │
+│  └─────────────────┘    └───────┬────────┘              │
+└─────────────────────────────────┼────────────────────────┘
+                                  │ Action Goals
+┌─────────────────────────────────▼────────────────────────┐
+│                   ghostpilot_core                         │
+│  ┌──────────────────────────────────────────────────┐   │
+│  │              Nav2 Navigation Stack                │   │
+│  │  ┌──────────┐  ┌──────────┐  ┌────────────────┐  │   │
+│  │  │ Planner  │──│Tracker  │──│ Controller    │  │   │
+│  │  └──────────┘  └──────────┘  └────────────────┘  │   │
+│  └────────────────────────┬─────────────────────────┘   │
+│  ┌────────────────────────▼─────────────────────────┐   │
+│  │              Pose Bridge (SLAM → Nav2)            │   │
+│  └────────────────────────┬─────────────────────────┘   │
+│  ┌────────────────────────▼─────────────────────────┐   │
+│  │           Visual-Inertial SLAM                    │   │
+│  │     Camera + IMU → 6DOF Pose Estimation           │   │
+│  │              (VINS-Mono / ORB-SLAM3)              │   │
+│  └──────────────────────────────────────────────────┘   │
+└──────────────────────────────────────────────────────────┘
+                                  │ Pose / Odometry
+┌─────────────────────────────────▼────────────────────────┐
+│                    Hardware Layer                         │
+│  ┌──────────┐   ┌───────────┐   ┌─────────────────┐      │
+│  │ Camera   │   │   IMU     │   │ Flight Ctrl     │      │
+│  │ RealSense│   │  (built-in)│   │ (MAVLink/PX4)  │      │
+│  └──────────┘   └───────────┘   └─────────────────┘      │
+└──────────────────────────────────────────────────────────┘
 ```
 
-## Components
+## Package Descriptions
 
-### 1. ghostpilot_core
+### ghostpilot_core
 
-Main navigation stack package.
+Core navigation stack wrapping VINS-Mono and bridging to Nav2.
 
-**Nodes:**
-- `slam_node` — VINS-Mono wrapper, publishes `/slam/pose`
-- `pose_bridge` — Converts SLAM pose to Nav2 format
+| Node | Description |
+|------|-------------|
+| `slam_node` | VINS-Mono wrapper, publishes `/pose` (geometry_msgs/PoseStamped) |
+| `pose_bridge` | Converts SLAM pose to Nav2 localization format |
 
-**Launch files:**
-- `bringup.launch.py` — Starts SLAM + Nav2 + pose bridge
+**Topics:**
+- `/camera/image_raw` — Input camera feed
+- `/imu/data` — Input IMU data
+- `/pose` — SLAM pose output
+- `/goal_pose` — Nav2 goal target
 
-### 2. ghostpilot_agent
+### ghostpilot_agent
 
-Agentic AI layer for mission planning.
+LLM-based mission decomposition and execution.
 
-**Nodes:**
-- `mission_parser` — Parses NL commands to goals
-- `executor` — Sends goals to Nav2
+| Node | Description |
+|------|-------------|
+| `mission_parser` | Parses natural language → structured goals |
+| `executor` | Behavior tree executing parsed goals |
 
-### 3. ghostpilot_gazebo
+**Actions:**
+- `NavigateToPose` — Move to a 3D waypoint
+- `InspectArea` — Systematic area scan
+- `AvoidObstacle` — Reactive obstacle avoidance
+- `LandAtPosition` — Controlled landing
 
-Gazebo simulation for testing.
+### ghostpilot_gazebo
 
-**Worlds:**
-- `indoor_warehouse.world` — Indoor GPS-denied test environment
+Gazebo simulation for testing without hardware.
+
+- `indoor_warehouse.world` — Simulation environment
+- `iris_with_slamba` — Drone model with SLAM sensors
 
 ## Data Flow
 
-1. **Camera + IMU** → VINS-Mono → 6DOF pose estimate
-2. **Pose** → Pose Bridge → Nav2 AMCL
-3. **Mission command** → Agent parser → Goal list
-4. **Goals** → Executor → Nav2 action server
-5. **Nav2** → Velocity commands → Drone
+1. **Mission Input**: "Check the third floor, report occupants"
+2. **Parse**: LLM extracts goals → `[Inspect(floor=3), Report(occupants=true)]`
+3. **Plan**: Executor builds Nav2 waypoint sequence
+4. **Navigate**: SLAM provides pose, Nav2 computes trajectory
+5. **Feedback**: Occupant detection results streamed back to operator
 
-## Topic Map
+## Configuration Files
 
-| Topic | Type | Direction | Purpose |
-|-------|------|----------|---------|
-| `/camera/image_raw` | Image | in | Camera input |
-| `/imu/data` | Imu | in | IMU input |
-| `/slam/pose` | PoseStamped | out | SLAM pose |
-| `/goal_pose` | PoseStamped | out | Nav2 goal |
-| `/cmd_vel` | Twist | out | Motor commands |
+| File | Purpose |
+|------|---------|
+| `vins_params.yaml` | VINS-Mono intrinsic/extrinsic parameters |
+| `nav2_params.yaml` | Nav2 planner, controller, costmap settings |
+| `agent_config.yaml` | LLM provider, model, behavior tree parameters |
 
-## Configuration
+## ROS2 Interface
 
-### VINS Parameters (`vins_params.yaml`)
-- Camera-IMU extrinsic calibration
-- Feature tracking thresholds
-- Loop closure settings
+```bash
+# Subscribe to pose
+ros2 topic echo /ghostpilot/pose
 
-### Nav2 Parameters (`nav2_params.yaml`)
-- AMCL configuration
-- Controller gains
-- Costmap inflation
-- Behavior tree
+# Send mission
+ros2 topic pub /ghostpilot/mission std_msgs/msg/String "{data: 'Fly to waypoint B'}"
 
-## Hardware Support
+# Monitor health
+ros2 topic echo /ghostpilot/health
+```
 
-| Platform | Status | Notes |
-|----------|--------|-------|
-| Jetson Orin | ✅ Tested | 30+ FPS |
-| Jetson Nano | ✅ Tested | 15 FPS |
-| Raspberry Pi 5 | ⚠️ WIP | Needs optimization |
-| x86_64 | ✅ Tested | For simulation |
+## Edge Deployment
+
+GhostPilot runs on:
+- **Jetson Orin AGX** (recommended, 275 AI TOPS)
+- **Raspberry Pi 5** (lower performance, 8GB RAM recommended)
+
+No cloud connectivity required. All inference is on-device.
+
+## Safety
+
+- Failsafe behaviors built into Nav2 recovery actions
+- Geofencing via dynamic reconfiguration
+- Manual override via standard MAVLink RC failover

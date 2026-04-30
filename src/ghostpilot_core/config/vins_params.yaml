@@ -1,56 +1,35 @@
-# VINS-Mono Configuration for GhostPilot
+camera:
+  sensor_name: Intel RealSense D435i
+  resolution: [640, 480]
+  fps: 30
+  distortion_model: equidistant
+  distortion_coefficients: [0.0, 0.0, 0.0, 0.0, 0.0]
 
-# Topics
-camera_topic: '/camera/image_raw'
-imu_topic: '/imu/data'
-output_odometry: '/vins/odometry'
+imu:
+  sensor_name: Intel RealSense D435i (built-in)
+  topic: /imu/data
+  frame_id: imu_link
+  queue_size: 100
 
-# Image processing
-image_width: 640
-image_height: 480
-freq: 10
-max_cnt: 200
-min_dist: 0.1
-equalize: true
+slam:
+  algorithm: VINS-Mono
+  feature_extraction_threshold: 10
+  max_features: 200
+  min_features_for_tracking: 10
+  keyframe_distance_threshold: 0.5
+  optimization_iterations: 10
+  sliding_window_size: 10
 
-# Feature tracking
-n_feature: 200
-fast_threshold: 20
-max_fast_threshold: 30
-min_fast_rate: 0.7
+publishing:
+  pose_topic: /ghostpilot/pose
+  odometry_topic: /ghostpilot/odometry
+  path_topic: /ghostpilot/path
+  map_topic: /ghostpilot/map_points
 
-# IMU parameters
-acc_n: 0.1      # Accelerometer noise density (m/s^2/√Hz)
-gyr_n: 0.01     # Gyroscope noise density (rad/s/√Hz)
-acc_w: 0.001    # Accelerometer random walk
-gyr_w: 0.0001   # Gyroscope random walk
+extrinsics:
+  camera_to_imuTranslation: [0.0, 0.0, 0.0]
+  camera_to_imuOrientation: [0.0, 0.0, 0.0, 1.0]
 
-# Extrinsic parameters (camera to IMU)
-T_imu_cam:
-  x: 0.0
-  y: 0.0
-  z: 0.0
-  roll: 0.0
-  pitch: 0.0
-  yaw: 0.0
-
-# Initialization
-estimate_extrinsic: false
-initial_extrinsic: false
-
-# Optimization
-max_solver_time: 0.04
-max_iterations: 10
-keyframe_translation_threshold: 0.2
-keyframe_rotation_threshold: 0.2
-
-# Loop closure
-loop_closure: true
-loop_detection_frequency: 1.0
-history_data_num: 20
-
-# Visualization
-visualize_pub_frequency: 5
-visualize_imu_forward: false
-visualize_odometry: true
-visualize_path: true
+visualization:
+  enable_debug_image: false
+  max_covisibility_features: 100

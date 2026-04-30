@@ -2,106 +2,113 @@
 
 ## The Problem
 
-GPS is the backbone of modern drone navigation — but it's **fragile**:
+Modern drones are **dependency-complete on GPS**. GPS signals are:
+- Weak (-125 dBm outdoor)
+- Easy to jam (1 Watt jammer = 10km radius disruption)
+- Subject to spoofing (Russia has deployed vehicle-mounted GPS spoofers)
+- Useless indoors
 
-| Threat | Effect | Real World Example |
-|--------|--------|---------------------|
-| Jamming | Complete position loss | Russia jamming Ukrainian drones |
-| Spoofing | False position data | Iran capturing US drone |
-| Shadow | Urban canyons, indoors | City inspection impossible |
-| Loss | Signal attenuation | Forest canopy, caves |
+## Ukraine Has Already Won the GPS War
 
-### Ukraine's Drone War (2022-2024)
+In 2022-2024, both sides deployed extensive GPS jamming:
+- **Russia**: Vehicle-mounted `Pokemon` jammers disrupted Ukrainian drones at scale
+- **Ukraine**: Developed `Palybitsa` and other anti-jamming tech
+- **Result**: Both sides now operate primarily GPS-denied
 
-Ukraine demonstrated that **GPS-denied warfare is here now**:
-- Russia deployed widespread GPS jamming in frontline zones
-- Commercial drones crashed or drifted off-target
-- Military-grade systems ($50K+) remained effective
-- The gap: **affordable, open-source GPS-denied navigation**
+The lesson is clear: **drones that can't fly without GPS are already obsolete** in contested environments.
 
-## How GPS Fails
+## Market Drivers
 
-### 1. Jamming
-Simple cheap jammers can block GPS within 1-2km radius:
-```
-Drone GPS Receiver ← ✗ ← GPS Satellites (1,200 km away)
-                  ↑
-            Jammer (10W, $50)
-```
+### Military
+- $50K+ proprietary GPS-denied systems dominate defense procurement
+- Ukraine War demonstrated mass drone deployment with electronic warfare
+- DoD seeking alternatives to costly military-only solutions
 
-### 2. Spoofing
-False GPS signals trick the drone into flying wrong location:
-```
-Drone thinks: 48.85°N, 2.35°E (Paris)
-Actually at:  55.75°N, 37.62°E (Moscow)
-```
+### Commercial
+- **Warehouse inspection**: GPS unavailable indoors
+- **Search & rescue**: Forests block GPS signals  
+- **Disaster response**: Infrastructure damage takes down GPS ground stations
+- **Urban air mobility**: Urban canyons create GPS black holes
 
-### 3. Shadow / Blockage
-GPS signals can't penetrate:
-- Urban canyons (tall buildings)
-- Indoor environments
-- Forest canopy
-- Caves / tunnels
+## Current Solutions Are Broken
 
-## The Solution: Visual-Inertial SLAM
+| Solution | Problem |
+|----------|---------|
+| Military GPS-denied nav | $50K-500K per unit, proprietary, export-controlled |
+| Academic SLAM code | Unmaintained, no docs, single-use research |
+| Consumer drones | Indoor = "no signal", no obstacle avoidance in GPS-denied |
+| None | Just accept GPS jamming |
 
-GhostPilot replaces GPS with **camera + IMU fusion**:
+## GhostPilot Solution
 
-```
-┌─────────────────────────────────────────────────────┐
-│  Visual-Inertial Odometry (VIO)                     │
-│                                                     │
-│  Camera Frame N ──────────▶ Features detected       │
-│       │                                              │
-│       ▼                                              │
-│  IMU Data ─────────────▶ Motion prediction         │
-│       │                                              │
-│       ▼                                              │
-│  Fusion ──────────────────▶ 6DOF Pose Estimate     │
-│                                                     │
-│  Result: Position without GPS!                      │
-└─────────────────────────────────────────────────────┘
-```
+GhostPilot provides **open-source, commercial-ready GPS-denied navigation**:
+- Built on proven components (VINS-Mono, Nav2)
+- Natural language mission control (agentic AI)
+- No cloud dependency (privacy-preserving, jam-proof)
+- Runs on $500 edge hardware (Jetson Orin)
 
-**Key insight**: By tracking features across camera frames and fusing with IMU acceleration data, we can estimate position with **centimeter-level accuracy** — no GPS required.
-
-## Why Open Source Matters
-
-| Closed-Source ($50K) | GhostPilot (Free) |
-|----------------------|---------------------|
-| Proprietary SLAM | VINS-Mono (proven OSS) |
-| Cloud dependency | 100% edge inference |
-| No customization | Full source access |
-| Vendor lock-in | Works with any hardware |
-| Military only | Civilian + defense |
-
-## Use Cases
-
-### Civilian
-- **Warehouse inspection** — GPS unavailable indoors
-- **Search & rescue** — Forest canopy blocks GPS
-- **Infrastructure inspection** — Bridges, towers, mines
-- **Autonomous delivery** — Urban last-mile
-
-### Defense
-- **Contested airspace** — GPS jamming environment
-- **Indoor reconnaissance** — Building clearance
-- **GPS-denied operations** — Electronic warfare zones
-
-## The Gap We Fill
+## The Gap GhostPilot Fills
 
 ```
-Cost                    ┌─────────────────────────────────┐
-$100K+ ─ ─ ─ ─ ─ ─ ─ ─ ─│ Military systems (classified)  │
-                        └─────────────────────────────────┘
-$10K ─ ─ ─ ─ ─ ─ ─ ─ ─ ─│ Skydio (limited GPS-denied)    │
-                        └─────────────────────────────────┘
-$1K  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─│ Commercial drones (GPS-only)   │
-                        └─────────────────────────────────┘
-$0  ─ ─ ─ ─ ─ ─ ─ ─ ─ ──│ GhostPilot (open source!)     │
-                        └─────────────────────────────────┘
-                         
-                         Capability →
+Cost:           $500           $5K            $50K+
+               ┌───────────────┼─────────────────┼──────►
+               │  GhostPilot   │   Skydio        │ Military
+               │  (open)       │   Enterprise   │ Systems
+               │               │                │
+Capability:    Basic Nav     Advanced Nav    Full GPS-denied
+                         ┌─────────────────┘
+                         │  The gap we're filling
+                         │
+               ┌─────────┴─────────────────────┐
+               │  Open-source GPS-denied nav   │
+               │  with agentic AI control      │
+               └──────────────────────────────┘
 ```
 
-**GhostPilot brings military-grade GPS-denied navigation to anyone.**
+## Technical Approach
+
+### Visual-Inertial SLAM
+
+Fuses camera + IMU data to estimate 6DOF pose without GPS:
+- **Camera**: Tracks visual features frame-to-frame
+- **IMU**: Provides motion prior for robustness
+- **Fusion**: Optimizes trajectory via bundle adjustment
+
+This is proven technology used in:
+- Smartphone AR (Apple ARKit, Google ARCore)
+- DJI drones (visual tracking since Phantom 4)
+- Autonomous vehicles (visual odometry)
+
+### Why Not Just Use RTK GPS?
+
+RTK (Real-Time Kinematics) provides centimeter accuracy but:
+- Requires base station within 10km
+- Still vulnerable to jamming
+- Indoors = no signal at all
+- Adds $2K+ to hardware cost
+
+### Why Not LiDAR SLAM?
+
+LiDAR is excellent for outdoor GPS-denied nav but:
+- LiDAR sensors: $1K-30K (Velodyne, Ouster)
+- Heavy, power-hungry
+- Indoors: limited range for FPV-size drones
+- VINS-Mono on RealSense D435i = $350 total
+
+## The Open-Source Advantage
+
+GhostPilot is not trying to compete with military systems. Instead:
+
+1. **Democratize** technology proven in defense
+2. **Accelerate** research and startup innovation  
+3. **Prove** open-source can match proprietary for non-critical applications
+4. **Build** community for sustained development
+
+## Future
+
+As autonomous drone regulations evolve, GPS-denied capability becomes mandatory:
+- FAA Beyond Visual Line of Sight (BVLOS) rules
+- Urban air mobility certification
+- Warehouse automation safety standards
+
+GhostPilot puts this capability in the hands of researchers, developers, and builders today.

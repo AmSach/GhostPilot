@@ -1,104 +1,77 @@
 #!/usr/bin/env python3
-"""
-VINS-Mono SLAM Node Wrapper
-
-Wraps VINS-Mono odometry output into GhostPilot navigation stack.
-Publishes odometry in Nav2-compatible format.
-"""
+"""VINS-Mono SLAM wrapper node for GhostPilot."""
 
 import rclpy
 from rclpy.node import Node
+from geometry_msgs.msg import PoseStamped, TransformStamped
+from sensor_msgs.msg import Image, Imu
 from nav_msgs.msg import Odometry
-from geometry_msgs.msg import TransformStamped
-from tf2_ros import TransformBroadcaster
-import tf_transformations
-import math
+import numpy as np
 
 
 class SLAMNode(Node):
-    """VINS-Mono SLAM node for GhostPilot."""
-    
+    """Visual-Inertial SLAM node wrapping VINS-Mono or ORB-SLAM3."""
+
     def __init__(self):
-        super().__init__('ghostpilot_slam_node')
+        super().__init__('slam_node')
         
-        # Parameters
-        self.declare_parameter('odom_frame', 'odom')
-        self.declare_parameter('base_frame', 'base_link')
-        self.declare_parameter('pub_rate', 10.0)
+        self.declare_parameter('config_file', '/config/vins_params.yaml')
+        self.declare_parameter('slam_pose_topic', '/ghostpilot/pose')
+        self.declare_parameter('odometry_topic', '/ghostpilot/odometry')
         
-        self.odom_frame = self.get_parameter('odom_frame').value
-        self.base_frame = self.get_parameter('base_frame').value
-        self.pub_rate = self.get_parameter('pub_rate').value
-        
-        # State
-        self.last_odom = None
-        self.odom_counter = 0
-        
-        # Publishers
-        self.odom_pub = self.create_publisher(Odometry, '/vins/odometry', 10)
-        
-        # TF broadcaster
-        self.tf_broadcaster = TransformBroadcaster(self)
+        slam_pose_topic = self.get_parameter('slam_pose_topic').value
+        odometry_topic = self.get_parameter('odometry_topic').value
         
         # Subscribers
-        self.create_subscription(
-            Odometry,
-            '/vins/odometry_raw',
-            self.odom_callback,
-            10
+        self.image_sub = self.create_subscription(
+            Image, '/camera/image_raw', self._image_callback, 10
+        )
+        self.imu_sub = self.create_subscription(
+            Imu, '/imu/data', self._imu_callback, 100
         )
         
-        self.get_logger().info('GhostPilot SLAM node started')
-    
-    def odom_callback(self, msg: Odometry):
-        """Process incoming VINS odometry."""
-        self.last_odom = msg
-        self.odom_counter += 1
+        # Publishers
+        self.pose_pub = self.create_publisher(PoseStamped, slam_pose_topic, 10)
+        self.odom_pub = self.create_publisher(Odometry, odometry_topic, 10)
         
-        # Republish with correct frame names
-        out_odom = Odometry()
-        out_odom.header = msg.header
-        out_odom.header.frame_id = self.odom_frame
-        out_odom.child_frame_id = self.base_frame
-        out_odom.pose = msg.pose
-        out_odom.twist = msg.twist
-        
-        self.odom_pub.publish(out_odom)
-        
-        # Publish TF
-        self.publish_transform(msg)
-        
-        # Log periodically
-        if self.odom_counter % 100 == 0:
-            pos = msg.pose.pose.position
-            self.get_logger().info(
-                f'SLAM pose: x={pos.x:.2f} y={pos.y:.2f} z={pos.z:.2f}'
-            )
-    
-    def publish_transform(self, odom: Odometry):
-        """Publish map->odom transform."""
-        t = TransformStamped()
-        t.header = odom.header
-        t.header.frame_id = 'map'
-        t.child_frame_id = self.odom_frame
-        
-        t.transform.translation.x = odom.pose.pose.position.x
-        t.transform.translation.y = odom.pose.pose.position.y
-        t.transform.translation.z = odom.pose.pose.position.z
-        
-        t.transform.rotation = odom.pose.pose.orientation
-        
-        self.tf_broadcaster.sendTransform(t)
+        self._pose = None
+        self._imu_buffer = []
+        self.get_logger().info('SLAM node initialized')
+
+    def _image_callback(self, msg: Image):
+        """Process camera frame through SLAM."""
+        # Placeholder: actual VINS-Mono/ORB-SLAM integration
+        # This would call the SLAM library's frame processing
+        self.get_logger().debug('Processing frame', throttle_duration_sec=1.0)
+
+    def _imu_callback(self, msg: Imu):
+        """Buffer IMU measurements for SLAM fusion."""
+        self._imu_buffer.append(msg)
+        if len(self._imu_buffer) > 100:
+            self._imu_buffer.pop(0)
+
+    def _publish_pose(self, pose: np.ndarray, stamp):
+        """Publish computed SLAM pose."""
+        pose_msg = PoseStamped()
+        pose_msg.header.stamp = stamp
+        pose_msg.header.frame_id = 'map'
+        pose_msg.pose.position.x = pose[0]
+        pose_msg.pose.position.y = pose[1]
+        pose_msg.pose.position.z = pose[2]
+        pose_msg.pose.orientation.x = pose[3]
+        pose_msg.pose.orientation.y = pose[4]
+        pose_msg.pose.orientation.z = pose[5]
+        pose_msg.pose.orientation.w = pose[6]
+        self.pose_pub.publish(pose_msg)
 
 
-def main(args=None):
-    rclpy.init(args=args)
+def main():
+    rclpy.init()
     node = SLAMNode()
-    
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
-        node.get_logger().info('Shutting down SLAM node')
+        pass
     finally:
         node.destroy_node()
         rclpy.shutdown()

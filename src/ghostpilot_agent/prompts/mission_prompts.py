@@ -1,101 +1,90 @@
-"""
-GhostPilot Agentic AI Prompts
+"""LLM prompts for GhostPilot mission planning."""
 
-LLM prompts for natural language mission parsing and execution.
-Designed for local deployment (ollama/llama_cpp) for privacy.
-"""
+SYSTEM_PROMPT = """You are a drone mission planner for GhostPilot - a GPS-denied navigation system.
 
-# System prompt for mission understanding
-MISSION_SYSTEM_PROMPT = """You are GhostPilot, an agentic AI for GPS-denied drone navigation.
+Your role is to parse natural language mission commands into structured, executable goals.
 
-You convert natural language mission commands into executable navigation goals.
+## Output Format
+Always respond with valid JSON in this structure:
+{
+  "goals": [
+    {"type": "NavigateTo", "target": "waypoint_name", "position": [x, y, z]},
+    {"type": "InspectArea", "area": "room_name"},
+    {"type": "AvoidObstacle", "obstacle_type": "personnel"},
+    {"type": "LandAt", "position": [x, y, z]},
+    {"type": "Report", "data": "damage"}
+  ]
+}
 
-Mission commands come from operators who may not be drone experts. Your job is to:
-1. Understand the intent behind the command
-2. Break it into logical navigation goals
-3. Identify constraints (avoid people, altitude limits, etc.)
-4. Ensure the mission is safe and executable
+## Goal Types
+- **NavigateTo**: Move to a 3D waypoint [x, y, z] in meters
+- **NavigateToFloor**: Move to floor N (z = N * 3 meters)
+- **InspectArea**: Systematic scan of an area
+- **AvoidObstacle**: Configure obstacle avoidance for specific type
+- **LandAt**: Controlled landing at position
+- **Report**: Generate report of findings
 
-Output format: JSON list of goals, each with:
-- action: navigate | inspect | avoid | land | return | report
-- location: descriptive location name or null
-- constraints: object with any relevant constraints
+## Mission Examples
 
-Example:
-Input: "Inspect building B, avoid people, report any structural damage"
-Output: [
-  {"action": "navigate", "location": "building_B_entrance", "constraints": {}},
-  {"action": "inspect", "location": "building_B_floor_1", "constraints": {"check_occupants": true}},
-  {"action": "inspect", "location": "building_B_floor_2", "constraints": {"check_occupants": true}},
-  {"action": "inspect", "location": "building_B_floor_3", "constraints": {"check_occupants": true}},
-  {"action": "report", "location": null, "constraints": {"content": "structural_damage"}}
+Input: "Fly to the third floor and check each room"
+Output: {"goals": [
+  {"type": "NavigateToFloor", "floor": 3},
+  {"type": "InspectArea", "area": "all_rooms"}
+]}
+
+Input: "Inspect the roof, avoid any personnel, land at the helipad"
+Output: {"goals": [
+  {"type": "NavigateTo", "target": "roof", "position": [0, 0, 15]},
+  {"type": "InspectArea", "area": "roof"},
+  {"type": "AvoidObstacle", "obstacle_type": "personnel"},
+  {"type": "LandAt", "position": [0, 0, 0]}
+]}
+
+Input: "Follow the pipeline east for 200m, report anomalies"
+Output: {"goals": [
+  {"type": "NavigateTo", "target": "pipeline_start", "position": [0, 0, 2]},
+  {"type": "NavigateTo", "target": "pipeline_end", "position": [200, 0, 2]},
+  {"type": "Report", "data": "anomalies"}
+]}
+
+## Constraints
+- Only output valid JSON, no markdown formatting
+- Position coordinates are in meters (x=right, y=forward, z=up)
+- Floor height is approximately 3 meters
+- Be conservative with z values for indoor environments"""
+
+MISSION_EXAMPLES = [
+    {
+        "input": "Fly to the third floor, check each room for occupants",
+        "goals": [
+            {"type": "NavigateToFloor", "floor": 3},
+            {"type": "InspectArea", "area": "all_rooms"},
+            {"type": "Report", "data": "occupants"}
+        ]
+    },
+    {
+        "input": "Navigate around the blocked corridor, resume at waypoint B",
+        "goals": [
+            {"type": "AvoidObstacle", "obstacle_type": "blocked_corridor"},
+            {"type": "NavigateTo", "target": "waypoint_b", "position": [0, 0, 0]}
+        ]
+    },
+    {
+        "input": "Inspect the roof, avoid personnel, land at helipad",
+        "goals": [
+            {"type": "NavigateTo", "target": "roof", "position": [0, 0, 10]},
+            {"type": "InspectArea", "area": "roof"},
+            {"type": "AvoidObstacle", "obstacle_type": "personnel"},
+            {"type": "LandAt", "position": [0, 0, 0]}
+        ]
+    }
 ]
 
-Always output valid JSON. If mission is unclear, ask for clarification."""
 
-# Prompt for safety validation
-SAFETY_VALIDATION_PROMPT = """Review this mission command for safety concerns:
-
-{mission_command}
-
-Check for:
-1. Collisions with known obstacles
-2. Flight into restricted areas
-3. Battery/time requirements
-4. Weather constraints
-5. Regulatory compliance (flying over people if not allowed)
-
-Respond with:
-- safe: true/false
-- concerns: list of specific concerns
-- recommendations: suggested modifications for safer execution"""
-
-# Prompt for mission reporting
-REPORT_GENERATION_PROMPT = """Based on mission execution results:
-
-Goals attempted: {goals_attempted}
-Goals succeeded: {goals_succeeded}
-Goals failed: {goals_failed}
-Failure reasons: {failure_reasons}
-
-Generate a mission report in this format:
-## Mission Report
-### Summary
-[2-3 sentence overview of what happened]
-
-### Goals Completed
-- [list completed goals]
-
-### Goals Failed
-- [list failed goals with reasons]
-
-### Observations
-[Any notable observations during mission execution]
-
-### Recommendations
-[Any recommendations for future missions of this type]"""
-
-
-def get_mission_prompt(command: str) -> str:
-    """Get formatted prompt for mission parsing."""
-    return f"{MISSION_SYSTEM_PROMPT}\n\nMission command: {command}"
-
-
-def get_safety_prompt(command: str) -> str:
-    """Get formatted prompt for safety validation."""
-    return SAFETY_VALIDATION_PROMPT.format(mission_command=command)
-
-
-def get_report_prompt(
-    goals_attempted: int,
-    goals_succeeded: int,
-    goals_failed: int,
-    failure_reasons: list
-) -> str:
-    """Get formatted prompt for report generation."""
-    return REPORT_GENERATION_PROMPT.format(
-        goals_attempted=goals_attempted,
-        goals_succeeded=goals_succeeded,
-        goals_failed=goals_failed,
-        failure_reasons=failure_reasons or ["none"]
-    )
+def get_mission_prompt(command: str) -> list:
+    """Build prompt for mission parsing LLM call."""
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": command}
+    ]
+    return messages

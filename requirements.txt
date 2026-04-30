@@ -1,6 +1,10 @@
-rclpy>=0.35.0
-geometry_msgs>=0.35.0
-sensor_msgs>=0.35.0
-action_msgs>=0.35.0
-std_msgs>=0.35.0
-numpy>=1.21.0
+rclpy==3.3.1
+geometry-msgs==0.7.5
+nav_msgs==0.7.5
+sensor_msgs==0.7.5
+std_msgs==0.7.5
+nav2_msgs==1.1.0
+numpy==1.24.3
+opencv-python==4.9.0.80
+pyyaml==6.0.1
+requests==2.31.0

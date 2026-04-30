@@ -1,103 +1,163 @@
 # GhostPilot Demo Guide
 
-## Demo 1: Indoor Warehouse Navigation
+## Demo 1: Indoor Warehouse Inspection
+
+### Scenario
+Autonomous inspection of a warehouse with GPS-denied environment.
 
 ### Setup
-
 ```bash
-# Launch Gazebo simulation
-ros2 launch ghostpilot_gazebo warehouse_world.launch.py
+# Terminal 1: Launch Gazebo simulation
+ros2 launch ghostpilot_gazebo indoor_warehouse.launch.py
 
-# In another terminal, launch navigation
+# Terminal 2: Launch core navigation
 ros2 launch ghostpilot_core bringup.launch.py
 
-# Launch agentic planner
-ros2 run ghostpilot_agent mission_executor
+# Terminal 3: Launch agent
+ros2 run ghostpilot_agent mission_parser_node
 ```
 
-### Run the Demo
-
+### Run Mission
 ```bash
 # Send mission command
-ros2 topic pub /mission_command std_msgs/msg/String "data: 'Navigate to storage zone A, scan for obstacles, return home'"
+ros2 topic pub /ghostpilot/mission std_msgs/msg/String \
+  "{data: 'Fly to the northeast corner, inspect each aisle, return to start'}"
 ```
 
-Expected behavior:
-1. Drone takes off (if not already flying)
-2. Nav2 navigates to zone A waypoint
-3. Obstacles detected via costmap
-4. Re-planning around obstacles
-5. Return to launch point
-6. Land and generate mission report
+### Expected Behavior
+1. Agent parses mission into waypoints
+2. SLAM builds map of warehouse
+3. Nav2 navigates to each waypoint
+4. Agent detects and reports obstacles
+5. Drone returns to launch position
 
-## Demo 2: GPS-Denied Comparison
+## Demo 2: GPS Jamming Resilience
+
+### Scenario
+Compare standard GPS-dependent flight vs GhostPilot during simulated jamming.
 
 ### Setup
-
 ```bash
-# Standard GPS mode (simulated)
-ros2 launch ghostpilot_gazebo gps_mode.launch.py
-
-# GPS-denied mode
-ros2 launch ghostpilot_gazebo gps_denied_mode.launch.py
+# Launch with GPS-denied environment
+ros2 launch ghostpilot_gazebo jammed_environment.launch.py
 ```
 
 ### Run Comparison
+```bash
+# Standard drone (should drift/lose position)
+ros2 topic pub /drone/cmd std_msgs/msg/String "{data: 'hover'}"
 
-1. **GPS Mode**: Fly through waypoints → note ~2m accuracy
-2. **GPS-Denied Mode**: Same trajectory → GhostPilot maintains accuracy via VINS
+# GhostPilot (should maintain position using SLAM)
+ros2 topic pub /ghostpilot/cmd std_msgs/msg/String "{data: 'hover'}"
+```
 
-## Demo 3: Natural Language Mission
+### Expected Behavior
+- Standard drone: Position error accumulates, eventually drifts off course
+- GhostPilot: Maintains position using visual odometry
 
-### Interactive Mode
+## Demo 3: Natural Language Mission Control
+
+### Scenario
+Complex multi-step mission via natural language.
+
+### Command
+```
+ros2 topic pub /ghostpilot/mission std_msgs/msg/String \
+  "{data: 'Inspect the third floor rooms, avoid any personnel, report damage to infrastructure'}"
+```
+
+### Expected Parsed Goals
+```
+1. NavigateToFloor(floor=3)
+2. InspectArea(rooms=all, avoid=personnel)
+3. ReportDamage(infrastructure=true)
+```
+
+## Demo 4: Gazebo World Walkthrough
+
+### Worlds Available
+- `indoor_warehouse.world` — Shelving, boxes, narrow aisles
+- `office_building.world` — Multiple floors, rooms, furniture
+- `disaster_site.world` — Rubble, debris, partial structures
+
+### Change World
+```bash
+export GAZEBO_WORLD=office_building
+ros2 launch ghostpilot_gazebo indoor_warehouse.launch.py
+```
+
+## Simulation Troubleshooting
+
+### Gazebo crashes on startup
+```bash
+# Kill stray processes
+pkill -9 gzserver; pkill -9 gzclient
+# Re-launch
+ros2 launch ghostpilot_gazebo indoor_warehouse.launch.py
+```
+
+### Drone falls through floor
+- Check Gazebo physics timestep matches ROS2 timestep
+- Verify drone URDF has correct inertial parameters
+
+### SLAM not initializing
+- Ensure camera feed is publishing
+- Check IMU data is available: `ros2 topic echo /imu/data`
+- Increase lighting in simulation world
+
+## Hardware Demo Setup
+
+### Required Hardware
+- Jetson Orin AGX (or Pi 5)
+- RealSense D435i camera
+- PX4 flight controller
+- MAVLink-capable quadcopter frame
+
+### Calibration Steps
+```bash
+# Camera-IMU calibration
+./scripts/calibrate_camera.sh
+
+# Verify extrinsic parameters
+ros2 param get /ghostpilot/slam_node extrinsics
+
+# Test SLAM in static position
+ros2 launch ghostpilot_core bringup.launch.py
+rviz2
+# Add TF display, verify camera->IMU transform
+```
+
+### Flight Test Sequence
+1. **Hover test**: 1m altitude hover for 30 seconds
+2. **Waypoint test**: Fly to 4 cardinal directions, return
+3. **Obstacle test**: Fly toward obstacle, verify avoidance
+4. **Mission test**: Full natural language command execution
+
+## Performance Benchmarks
+
+### Simulation Targets
+- SLAM pose latency: < 50ms
+- Nav2 planning time: < 200ms
+- Total loop time: < 100ms (10 Hz control)
+
+### Hardware Targets
+- On Jetson Orin: 30 FPS SLAM
+- On Raspberry Pi 5: 15 FPS SLAM
+- Power consumption: < 30W peak
+
+## Monitoring Tools
 
 ```bash
-ros2 run ghostpilot_agent interactive_mission
+# Watch pose accuracy
+ros2 topic echo /ghostpilot/pose -n 1
+
+# Monitor SLAM health
+ros2 topic echo /ghostpilot/health
+
+# Plot trajectory
+ros2 run rqt_plot rqt_plot /ghostpilot/pose/position/...
+
+# View costmap
+ros2 run rviz2 rviz2
+# Add ObstacleLayer, verify obstacle inflation
 ```
-
-At the prompt:
-```
-> Inspect the east wing, avoid the central pillar, report any people detected
-[Agent] Parsing mission...
-[Agent] Generated 5 goals:
-  1. Navigate to east_wing_entrance
-  2. Scan room_1 (occupancy check)
-  3. Navigate around central_pillar
-  4. Scan room_2 (occupancy check)
-  5. Return to home and land
-[Agent] Executing goal 1...
-```
-
-## Troubleshooting
-
-### SLAM Initialization Fails
-- Ensure camera has sufficient texture (not a blank wall)
-- Check IMU data is publishing: `ros2 topic echo /imu/data`
-- Increase `max_cnt` in `vins_params.yaml`
-
-### Navigation Stalls
-- Check costmap has obstacles: `ros2 topic echo /costmap`
-- Verify planner can find path: `ros2 topic echo /planned_path`
-- Try recovery: `ros2 service call /recover nav2_srv/SimpleCharge`
-
-### Gazebo Crashes
-- Ensure sufficient RAM (8GB+ recommended)
-- Reduce simulation speed: edit `gz_params.yaml` set `max_sim_time=0.5`
-
-## Performance Metrics
-
-Track these to evaluate GhostPilot:
-
-| Metric | Target | How to Measure |
-|--------|--------|----------------|
-| SLAM FPS | 30+ | `ros2 topic hz /odometry/filtered` |
-| Pose accuracy | <10cm | Compare to OptiTrack if available |
-| Navigation success | >90% | Count successful missions |
-| Battery drain | Track per-mission | Monitor `/battery_state` |
-
-## Next Steps After Demo
-
-1. Calibrate your camera-IMU: `bash scripts/calibrate_camera.sh`
-2. Tune VINS params for your environment (lighting, texture)
-3. Customize behavior tree for your mission types
-4. Integrate with your hardware platform

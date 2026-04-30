@@ -1,35 +1,34 @@
-# Python
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
+*.pyc
+*.pyo
+*.pyd
 .Python
-env/
-venv/
-.venv/
-build/
-dist/
+*.so
+*.egg
 *.egg-info/
-
-# ROS
+dist/
+build/
+.pytest_cache/
+.coverage
+htmlcov/
+venv/
+env/
+.venv/
+*.log
+.ROS_WS/
+colcon_build/
+install/
 log/
-log/*/
-*.bag
-*.db3
-
-# IDE
-.vscode/
-.idea/
 *.swp
 *.swo
-
-# OS
+*~
 .DS_Store
-Thumbs.db
-
-# Logs
-*.log
-
-# Maps (large)
-*.pbstream
-*.ot
+.idea/
+.vscode/
+*.bag
+*.db3
+*.sqlite
+*.sqlite3
+.node_binary
+stdextras/
+dependencies/
