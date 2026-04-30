@@ -1,0 +1,6 @@
+rclpy>=0.35.0
+geometry_msgs>=0.35.0
+sensor_msgs>=0.35.0
+action_msgs>=0.35.0
+std_msgs>=0.35.0
+numpy>=1.21.0

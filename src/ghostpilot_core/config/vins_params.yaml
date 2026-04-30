@@ -1,0 +1,56 @@
+# VINS-Mono Configuration for GhostPilot
+
+# Topics
+camera_topic: '/camera/image_raw'
+imu_topic: '/imu/data'
+output_odometry: '/vins/odometry'
+
+# Image processing
+image_width: 640
+image_height: 480
+freq: 10
+max_cnt: 200
+min_dist: 0.1
+equalize: true
+
+# Feature tracking
+n_feature: 200
+fast_threshold: 20
+max_fast_threshold: 30
+min_fast_rate: 0.7
+
+# IMU parameters
+acc_n: 0.1      # Accelerometer noise density (m/s^2/√Hz)
+gyr_n: 0.01     # Gyroscope noise density (rad/s/√Hz)
+acc_w: 0.001    # Accelerometer random walk
+gyr_w: 0.0001   # Gyroscope random walk
+
+# Extrinsic parameters (camera to IMU)
+T_imu_cam:
+  x: 0.0
+  y: 0.0
+  z: 0.0
+  roll: 0.0
+  pitch: 0.0
+  yaw: 0.0
+
+# Initialization
+estimate_extrinsic: false
+initial_extrinsic: false
+
+# Optimization
+max_solver_time: 0.04
+max_iterations: 10
+keyframe_translation_threshold: 0.2
+keyframe_rotation_threshold: 0.2
+
+# Loop closure
+loop_closure: true
+loop_detection_frequency: 1.0
+history_data_num: 20
+
+# Visualization
+visualize_pub_frequency: 5
+visualize_imu_forward: false
+visualize_odometry: true
+visualize_path: true

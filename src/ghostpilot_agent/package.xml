@@ -1,0 +1,27 @@
+# ghostpilot_agent ROS2 Package
+
+from setuptools import setup, find_packages
+
+setup(
+    name='ghostpilot_agent',
+    version='0.1.0',
+    description='GhostPilot agentic AI mission planner',
+    maintainer='Aman Sachan',
+    maintainer_email='amansachan92905@gmail.com',
+    license='MIT',
+    package_dir={'src': 'src'},
+    packages=find_packages(where='src'),
+    python_requires='>=3.10',
+    install_requires=[
+        'rclpy>=3.3.0',
+        'nav2_msgs>=2.0.0',
+        'geometry_msgs>=4.0.0',
+        'actionlib_msgs>=2.0.0',
+    ],
+    entry_points={
+        'console_scripts': [
+            'mission_executor=ghostpilot_agent.agent.executor:main',
+            'interactive_mission=ghostpilot_agent.agent.interactive:main',
+        ],
+    },
+)

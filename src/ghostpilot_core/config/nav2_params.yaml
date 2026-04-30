@@ -1,0 +1,103 @@
+# Nav2 Configuration for GhostPilot
+
+amcl:
+  ros__parameters:
+    use_sim_time: true
+    alpha1: 0.2
+    alpha2: 0.2
+    alpha3: 0.2
+    alpha4: 0.2
+    alpha5: 0.1
+    base_frame_id: "base_link"
+    beam_skip_distance: 0.5
+    beam_skip_threshold: 0.3
+    do_beamskip: false
+    global_frame_id: "map"
+    lambda_short: 0.1
+    laser_likelihood_max_dist: 2.0
+    laser_max_range: 20.0
+    laser_min_range: 0.2
+    laser_model_type: "likelihood_field"
+    max_beams: 30
+    max_particles: 2000
+    min_particles: 500
+    odom_frame_id: "odom"
+    pf_err: 0.005
+    pf_z: 0.4
+    recovery_alpha_fast: 0.0
+    recovery_alpha_slow: 0.0
+    resample_interval: 1
+    robot_model_type: "nav2_amcl::DifferentialMotion"
+    sensor_model_type: "beam"
+    update_min_a: 0.2
+    update_min_d: 0.25
+    x_max: 50.0
+    x_min: -50.0
+    y_max: 50.0
+    y_min: -50.0
+    z_hit: 0.5
+    z_max: 0.05
+    z_rand: 0.5
+    z_short: 0.05
+
+bt_navigator:
+  ros__parameters:
+    use_sim_time: true
+    global_frame_id: "map"
+    robot_base_frame: "base_link"
+    odom_topic: "/odometry/filtered"
+    default_nav_through_poses_bt_xml: "$(find-pkg-share nav2_bt_navigator)/behavior_trees/nav_through_poses.xml"
+    default_nav_to_pose_bt_xml: "$(find-pkg-share nav2_bt_navigator)/behavior_trees/nav_to_pose.xml"
+    goal_blackboard_id: "goal"
+    results_blackboard_id: "result"
+    default_bt_xml_filename: "$(find-pkg-share nav2_bt_navigator)/behavior_trees/nav_to_pose.xml"
+    plugin_lib_names:
+      - nav2_behavior_tree
+
+controller_server:
+  ros__parameters:
+    use_sim_time: true
+    controller_frequency: 20.0
+    min_x_velocity_threshold: 0.001
+    min_y_velocity_threshold: 0.001
+    min_theta_velocity_threshold: 0.001
+    failure_tolerance: 0.3
+    progress_checker_plugin_id: "progress_checker"
+    goal_checker_plugin_id: "goal_checker"
+    controller_plugins: ["FollowPath"]
+
+    # DWB Controller parameters
+    FollowPath:
+      plugin: "dwb_plugins::DWBLocalPlanner"
+      min_vel_x: 0.0
+      min_vel_y: 0.0
+      max_vel_x: 2.0
+      max_vel_y: 0.0
+      max_vel_theta: 1.57
+      min_speed_xy: 0.0
+      max_speed_xy: 2.0
+      min_speed_theta: 0.0
+      acc_lim_x: 2.5
+      acc_lim_y: 0.0
+      acc_lim_theta: 3.2
+
+planner_server:
+  ros__parameters:
+    use_sim_time: true
+    expected_planner_frequency: 20.0
+    planner_plugins: ["GridBased"]
+
+    GridBased:
+      plugin: "nav2_smac_planner/SmacPlanner"
+      tolerance: 0.5
+      heuristic: "2d"
+      max_iterations: 100000
+      max_on_approach_iterations: 1000
+
+smoother_server:
+  ros__parameters:
+    use_sim_time: true
+
+bt_navigator_navigator:
+  ros__parameters:
+    default_nav_to_pose_bt_xml: "$(find-pkg-share ghostpilot_core)/behavior_trees/nav_to_pose.xml"
