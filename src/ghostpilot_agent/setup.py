@@ -1,12 +1,33 @@
-from setuptools import setup
+#!/usr/bin/env python3
+"""Setup for ghostpilot_agent ROS2 package."""
+
+from setuptools import setup, find_packages
+import os
+from glob import glob
+
+package_name = 'ghostpilot_agent'
 
 setup(
-    name='ghostpilot_agent',
+    name=package_name,
     version='0.1.0',
-    description='Agentic AI layer: LLM mission parser + executor',
+    packages=find_packages(exclude=['test']),
+    data_files=[
+        ('share/ament_index/resource_index/packages',
+            ['resource/' + package_name]),
+        ('share/' + package_name, ['package.xml']),
+    ],
+    install_requires=['setuptools'],
+    zip_safe=True,
     maintainer='Aman Sachan',
     maintainer_email='amansachan92905@gmail.com',
+    description='Agentic AI layer: LLM mission parser + Nav2 executor',
     license='Apache-2.0',
-    packages=[],
-    python_requires='>=3.8',
+    tests_require=['pytest'],
+    entry_points={
+        'console_scripts': [
+            'mission_parser = ghostpilot_agent.mission_parser:main',
+            'executor = ghostpilot_agent.executor:main',
+            'interactive = ghostpilot_agent.interactive:main',
+        ],
+    },
 )
