@@ -8,8 +8,8 @@ from geometry_msgs.msg import PoseStamped
 import json
 import re
 
-# Import prompts from mission_prompts module
-from ghostpilot_agent.prompts.mission_prompts import (
+# Import prompts from mission_prompts module (same directory)
+from .mission_prompts import (
     SYSTEM_PROMPT,
     MISSION_EXAMPLES,
     get_mission_prompt,
