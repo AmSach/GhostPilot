@@ -98,6 +98,10 @@ class MissionParser(Node if HAS_ROS2 else object):
 
     def _register_prompts(self):
         """Define mission parsing prompts."""
+        try:
+            from .mission_prompts import SYSTEM_PROMPT, MISSION_EXAMPLES, get_mission_prompt
+        except ImportError:
+            from mission_prompts import SYSTEM_PROMPT, MISSION_EXAMPLES, get_mission_prompt
         self.system_prompt = """You are a drone mission planner for GhostPilot.
 Parse natural language commands into structured goals.
 Output JSON with this structure:
