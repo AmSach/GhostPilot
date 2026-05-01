@@ -160,17 +160,30 @@ Only output valid JSON, no markdown formatting."""
                 self.get_logger().error(f'LLM parsing failed: {e}')
             return self._parse_with_regex(command)
 
+    # Ordinal word → floor number
+    _WORD_TO_FLOOR = {
+        'first': 1, 'second': 2, 'third': 3, 'fourth': 4, 'fifth': 5,
+        'sixth': 6, 'seventh': 7, 'eighth': 8, 'ninth': 9, 'tenth': 10,
+    }
+
     def _parse_with_regex(self, command: str) -> dict:
-        """Fallback regex-based parsing."""
+        """Fallback regex-based parsing — handles ordinal words, numeric ordinals, and 'floor N'."""
         goals = []
-        
-        # Floor parsing - handle both "third floor" and "floor 3"
-        floor_match = re.search(r'(?:third|3rd)\s+floor|floor\s+(\d+)', command, re.I)
+
+        # Floor parsing: ordinal words | "N[st/nd/rd/th] floor" | "floor N"
+        floor_match = re.search(
+            r'(?:(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth)'
+            r'|\b(\d+)(?:st|nd|rd|th)?)\s+floor'
+            r'|floor\s+(\d+)',
+            command, re.IGNORECASE,
+        )
         if floor_match:
             if floor_match.group(1):
-                floor_num = int(floor_match.group(1))
+                floor_num = self._WORD_TO_FLOOR[floor_match.group(1).lower()]
+            elif floor_match.group(2):
+                floor_num = int(floor_match.group(2))
             else:
-                floor_num = 3  # "third floor"
+                floor_num = int(floor_match.group(3))
             goals.append({'type': 'NavigateToFloor', 'floor': floor_num})
         
         inspect_match = re.search(r'inspect|check|scan', command, re.I)

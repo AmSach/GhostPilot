@@ -21,20 +21,33 @@ class TestMissionParser:
     """Test mission parsing logic."""
     
     def test_regex_floor_parsing(self):
-        """Test that floor numbers are correctly parsed."""
+        """Test that floor numbers are correctly parsed — ordinals, numeric, and 'floor N'."""
         parser = MissionParser()
-        
-        # Test third floor
+
+        # Ordinal word: third floor
         result = parser._parse_with_regex("Fly to the third floor")
-        assert 'goals' in result
-        assert len(result['goals']) > 0
         assert result['goals'][0]['type'] == 'NavigateToFloor'
         assert result['goals'][0]['floor'] == 3
-        
-        # Test floor 5
-        result = parser._parse_with_regex("Navigate to floor 5")
-        assert result['goals'][0]['type'] == 'NavigateToFloor'
+
+        # Ordinal word: second floor
+        result = parser._parse_with_regex("Go to the second floor")
+        assert result['goals'][0]['floor'] == 2
+
+        # Numeric ordinal: 5th floor
+        result = parser._parse_with_regex("Navigate to 5th floor")
         assert result['goals'][0]['floor'] == 5
+
+        # Numeric ordinal: 1st floor
+        result = parser._parse_with_regex("Fly to 1st floor")
+        assert result['goals'][0]['floor'] == 1
+
+        # "floor N" format
+        result = parser._parse_with_regex("Navigate to floor 5")
+        assert result['goals'][0]['floor'] == 5
+
+        # "floor N" high number
+        result = parser._parse_with_regex("Navigate to floor 10")
+        assert result['goals'][0]['floor'] == 10
     
     def test_regex_inspect_parsing(self):
         """Test that inspect commands are parsed."""

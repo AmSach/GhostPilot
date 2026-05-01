@@ -27,7 +27,6 @@ setup(
         'console_scripts': [
             'mission_parser = ghostpilot_agent.mission_parser:main',
             'executor = ghostpilot_agent.executor:main',
-            'interactive = ghostpilot_agent.interactive:main',
         ],
     },
 )
